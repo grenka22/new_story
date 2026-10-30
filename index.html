@@ -3,186 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Наполняющееся неоновое сердце</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #030008;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        canvas {
-            display: block;
-            filter: drop-shadow(0 0 20px rgba(255, 50, 150, 0.6)) drop-shadow(0 0 40px rgba(150, 50, 255, 0.4));
-        }
-    </style>
+    <title>Для тебя ❤️</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <canvas id="heartCanvas"></canvas>
+    <!-- Фоновые сердечки -->
+    <div id="background-hearts"></div>
 
-    <script>
-        const canvas = document.getElementById('heartCanvas');
-        const ctx = canvas.getContext('2d');
+    <!-- Секретное сердечко в углу -->
+    <div id="secret-heart" title="Тут что-то есть...">💗</div>
 
-        let width, height, scale;
+    <!-- Экран 1: Конверт -->
+    <div id="envelope-screen" class="screen active">
+        <div class="envelope-wrapper" onclick="openLetter()">
+            <div class="envelope">
+                <div class="flap"></div>
+                <div class="pocket"></div>
+                <div class="letter">
+                    <p>Привет...</p>
+                </div>
+            </div>
+            <p class="hint">Нажми, чтобы открыть</p>
+        </div>
+    </div>
 
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-            const minSide = Math.min(width, height);
-            scale = minSide / 35;
-        }
-        window.addEventListener('resize', resize);
-        resize();
+    <!-- Экран 2: Письмо -->
+    <div id="letter-screen" class="screen">
+        <div class="paper">
+            <h2 class="greeting">Моей любимой...</h2>
+            <p id="typewriter-text"></p>
+            <button id="next-btn" class="hidden" onclick="startQuiz()">Далее ❤️</button>
+        </div>
+    </div>
 
-        let time = 0;
-        let drawProgress = 0; // Прогресс рисования контура
-        let fillLevel = 0;    // Уровень заполнения (от 0 до 1)
+    <!-- Экран 3: Тест -->
+    <div id="quiz-screen" class="screen">
+        <div class="quiz-container">
+            <h2>А теперь маленькая проверка 🥰</h2>
+            <div id="question-text"></div>
+            <div id="options-container"></div>
+            <p id="feedback"></p>
+        </div>
+    </div>
 
-        // Функция для получения координат точки на контуре
-        function getHeartPoint(t) {
-            const x = 16 * Math.pow(Math.sin(t), 3);
-            const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
-            return { x, y };
-        }
+    <!-- Экран 4: Финал -->
+    <div id="final-screen" class="screen">
+        <div class="final-content">
+            <h1>Ты справилась! 🎉</h1>
+            <p>Ты — лучшее, что случилось в моей жизни.</p>
+            <button id="magic-btn" onclick="triggerConfetti()">Нажми меня ✨</button>
+        </div>
+    </div>
 
-        function animate() {
-            ctx.clearRect(0, 0, width, height);
+    <!-- Всплывающее окно секрета -->
+    <div id="secret-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeSecret()">&times;</span>
+            <h3>Секретик 🤫</h3>
+            <p>Я люблю тебя больше, чем вчера, но меньше, чем завтра.</p>
+            <p class="signature">by VTY</p>
+        </div>
+    </div>
 
-            const centerX = width / 2;
-            const centerY = height / 2;
-            
-            // Плавная общая пульсация
-            const pulse = 1 + Math.sin(time * 0.02) * 0.04;
-
-            // ==========================================
-            // 1. РИСУЕМ КОНТУР (появляется в начале)
-            // ==========================================
-            if (drawProgress < 1) {
-                drawProgress += 0.015; 
-            }
-
-            ctx.beginPath();
-            const maxT = Math.min(drawProgress, 1) * Math.PI * 2;
-            const steps = 200;
-            
-            for (let i = 0; i <= steps * Math.min(drawProgress, 1); i++) {
-                const t = (i / steps) * Math.PI * 2;
-                const p = getHeartPoint(t);
-                const x = centerX + p.x * scale * pulse;
-                const y = centerY + p.y * scale * pulse;
-
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            
-            ctx.strokeStyle = '#ff2a75';
-            ctx.lineWidth = 3;
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = '#ff2a75';
-            ctx.stroke();
-
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.shadowBlur = 5;
-            ctx.stroke();
-
-
-            // ==========================================
-            // 2. НАПОЛНЕНИЕ (начинается, когда контур готов)
-            // ==========================================
-            if (drawProgress >= 1) {
-                // Заполнение растет от 0 до 1 (примерно 3 секунды)
-                if (fillLevel < 1) {
-                    fillLevel += 0.005; 
-                }
-
-                // Сохраняем состояние и делаем обрезку по форме сердца
-                ctx.save();
-                ctx.beginPath();
-                for (let i = 0; i <= steps; i++) {
-                    const t = (i / steps) * Math.PI * 2;
-                    const p = getHeartPoint(t);
-                    const x = centerX + p.x * scale * pulse;
-                    const y = centerY + p.y * scale * pulse;
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                }
-                ctx.clip(); 
-
-                // Вычисляем, насколько высоко поднялась жидкость
-                // centerY + 150 — это самый низ, centerY - 150 — это самый верх
-                const bottomY = centerY + 150 * pulse; 
-                const topY = centerY - 150 * pulse;
-                // Текущая высота жидкости
-                const currentFillY = bottomY - (bottomY - topY) * fillLevel;
-
-                // Рисуем волны
-                for (let w = 0; w < 3; w++) {
-                    ctx.beginPath();
-                    
-                    // Волны крепятся к текущему уровню заполнения
-                    const waveYBase = currentFillY + (w - 1) * 15; 
-                    
-                    for (let x = 0; x <= width; x += 10) {
-                        // Амплитуда волн уменьшается, пока сердце не наполнится
-                        const waveAmplitude = 25 * pulse * (1 - fillLevel * 0.5); 
-                        const y = waveYBase + Math.sin(x * 0.01 + time * 0.05 + w) * waveAmplitude;
-                        
-                        if (x === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    }
-
-                    // Градиент для жидкости
-                    const gradient = ctx.createLinearGradient(0, topY, 0, bottomY);
-                    gradient.addColorStop(0, `rgba(255, 100, 200, ${0.6 - w * 0.1})`); // Розовый сверху
-                    gradient.addColorStop(1, `rgba(150, 50, 255, ${0.8 - w * 0.1})`); // Фиолетовый снизу
-                    
-                    ctx.fillStyle = gradient;
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = '#ff2a75';
-                    
-                    // Заливаем всё, что ниже волны
-                    ctx.lineTo(width, height);
-                    ctx.lineTo(0, height);
-                    ctx.closePath();
-                    ctx.fill();
-                }
-
-                // Добавляем блики (они плавают внутри жидкости)
-                for (let i = 0; i < 5; i++) {
-                    // Блики не должны быть выше уровня жидкости
-                    const maxSpotY = currentFillY;
-                    const spotX = centerX + Math.sin(time * 0.03 + i) * 60 * pulse;
-                    const spotY = maxSpotY + Math.cos(time * 0.04 + i * 2) * 30 * pulse;
-                    
-                    const spotGradient = ctx.createRadialGradient(spotX, spotY, 0, spotX, spotY, 50);
-                    spotGradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
-                    spotGradient.addColorStop(1, 'rgba(255, 100, 200, 0)');
-                    
-                    ctx.beginPath();
-                    ctx.arc(spotX, spotY, 50, 0, Math.PI * 2);
-                    ctx.fillStyle = spotGradient;
-                    ctx.fill();
-                }
-
-                ctx.restore(); // Убираем обрезку
-            }
-
-            time += 1;
-            requestAnimationFrame(animate);
-        }
-
-        animate();
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
